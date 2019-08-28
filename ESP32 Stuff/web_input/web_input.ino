@@ -13,10 +13,10 @@ const char MAIN_page[] PROGMEM = R"=====(
  
 <form action="/action_page">
   First name:<br>
-  <input type="text" name="firstname" value="Mickey">
+  <input type="text" name="Node identifier" value="MAP-S-CON-XXXX">
   <br>
   Last name:<br>
-  <input type="text" name="lastname" value="Mouse">
+  <input type="text" name="Senor to set" value="eg:Temperature.">
   <br><br>
   <input type="submit" value="Submit">
 </form> 
@@ -24,10 +24,12 @@ const char MAIN_page[] PROGMEM = R"=====(
 </body>
 </html>
 )=====";
+
  
+String nodeIdentifier, sensorUsing = "NaN";
 //SSID and Password of your WiFi router
-const char* ssid = "dlink";
-const char* password = "";
+const char* ssid = "SMVDUWIFI";
+const char* password = "networkcentre";
  
 WebServer server(80);
 //===============================================================
@@ -41,14 +43,14 @@ void handleRoot() {
 // This routine is executed when you press submit
 //===============================================================
 void handleForm() {
- String firstName = server.arg("firstname"); 
- String lastName = server.arg("lastname"); 
+ nodeIdentifier = server.arg("Node identifier"); 
+ sensorUsing = server.arg("Senor to set"); 
  
- Serial.print("First Name:");
- Serial.println(firstName);
+ Serial.print("Node in use:");
+ Serial.println(nodeIdentifier);
  
- Serial.print("Last Name:");
- Serial.println(lastName);
+ Serial.print("Sensor in use:");
+ Serial.println(sensorUsing);
  
  String s = "<a href='/'> Go Back </a>";
  server.send(200, "text/html", s); //Send web page
