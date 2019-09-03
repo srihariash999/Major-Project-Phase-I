@@ -1,3 +1,11 @@
+
+
+
+// Development currently on Hiatus for ESP32 branch. 
+//Uncomment these lines if status changed in future.
+
+
+
 #include <WiFi.h>
 
 #include <WiFiManager.h>
