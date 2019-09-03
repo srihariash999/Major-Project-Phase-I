@@ -1,5 +1,20 @@
+#include <ESP8266WiFi.h>
+#include <WiFiClient.h>
+#include <ESP8266WebServer.h>
+#include<EEPROM.h>
+
+#ifndef APSSID
+#define APSSID "MAP-S-CON 3000 Setup"
+#define APPSK  "1234567890"
+#endif
 
 
+
+/*
+====================================================================================================================================
+                  The webpage displayed where you can enter the details for the Access point you wanna connect.
+====================================================================================================================================
+*/
 
 
 const char MAIN_page[] PROGMEM = R"=====(
@@ -25,20 +40,27 @@ const char MAIN_page[] PROGMEM = R"=====(
 )=====";
 
 
+/*
+====================================================================================================================================
+                  The webpage displayed where you can enter the details of Node and Sensor connected.
+====================================================================================================================================
+*/
+
+
 const char MAIN_page2[]  = R"=====(
 <!DOCTYPE html>
 <html>
 <body>
  
-<h2>Circuits4you<h2>
-<h3> HTML Form ESP8266</h3>
+<h2>MAP.S.CON 3000 Configuration<h2>
+<h3>Select the configuration please.</h3>
  
 <form action="/action_page">
   First name:<br>
   <input type="text" name="Node identifier" value="MAP-S-CON-XXXX">
   <br>
   Last name:<br>
-  <input type="text" name="Senor to set" value="eg:Temperature.">
+  <input type="text" name="Sensor to set" value="eg:Temperature.">
   <br><br>
   <input type="submit" value="Submit">
 </form> 
@@ -48,106 +70,170 @@ const char MAIN_page2[]  = R"=====(
 )=====";
 
 
-const char MAIN_page3[]  = R"=====(
-<!DOCTYPE html>
-<html>
-<body>
- 
-<h2>tlhIngan maH taHjaj!<h2>
-<h3> Poop. Balls. Farts.</h3>
-<p> For you non-trekkers, that first sentence means, "Remain Klingon"</p>
- 
- 
-</body>
-</html>
-)=====";
 
 
-#include <ESP8266WiFi.h>
-#include <WiFiClient.h>
-#include <ESP8266WebServer.h>
 
-#ifndef APSSID
-#define APSSID "MAP-S-CON 3000 Setup"
-#define APPSK  "1234567890"
-#endif
 
-/* Set these to your desired credentials. */
+
+
+/*
+====================================================================================================================================
+                    Declaration of the Global variables used.
+====================================================================================================================================
+*/
+
+
 const char *ssid = APSSID;
 const char *password = APPSK;
+String ssidC, passwordC = "NaN";
+int AddrlenSsid = 99, AddrlenPass = 100, AddrSsid = 101, AddrPass = 150;
+int lenSsid=0, lenPass=0;
+String nodeIdentifier, sensorUsing = "NaN";
+bool configDone = false;
+
+/*
+====================================================================================================================================
+                    Instantiation of the objects for the libraries used.
+====================================================================================================================================
+*/
+
 
 ESP8266WebServer server(80);
 
-String ssidC, passwordC = "NaN";
-String nodeIdentifier, sensorUsing = "NaN";
 
-/* Just a little test message.  Go to http://192.168.4.1 in a web browser
-   connected to this access point to see it.
+
+/*
+====================================================================================================================================
+                    Routines that handles the root page on the server.
+====================================================================================================================================
 */
+
 void handleRoot() {
  String s = MAIN_page; //Read HTML contents
  server.send(200, "text/html", s); //Send web page
 }
+
+void handleRoot2() {
+ String s = MAIN_page2; //Read HTML contents
+ server.send(200, "text/html", s); //Send web page
+}
+
+/*
+====================================================================================================================================
+                   Routine that handles the HTML form where user can enter their details
+====================================================================================================================================
+*/
+
 
 
 void handleForm() {
  ssidC = server.arg("SSID"); 
  passwordC = server.arg("PASSWORD"); 
  
+ saveDetails(ssidC,passwordC);
  Serial.print("SSID to connect:");
  Serial.println(ssidC);
  
  Serial.print("password:");
  Serial.println(passwordC);
 
- 
-
-   if(ssidC == "NaN" || passwordC == "NaN" || ssidC == "XXXX" || passwordC == "XXXX")
-  { String p = "<a href='/'> Go Back </a>";
- server.send(200, "text/html", p); //Send web page
- }
-
-
-   String p = MAIN_page2;
-   server.send(200,"text/html",p);
-   
-}
-
-
-
-
-void handleRoot2() {
- String p = MAIN_page2; //Read HTML contents
+ String p = "<a href='/'> Go Back </a>";
  server.send(200, "text/html", p); //Send web page
 }
 
-void handleRoot3() {
- String p = MAIN_page3; //Read HTML contents
- server.send(200, "text/html", p ); //Send web page
-}
 
 void handleForm2() {
  nodeIdentifier = server.arg("Node identifier"); 
- sensorUsing = server.arg("Senor to set"); 
+ sensorUsing = server.arg("Sensor to set"); 
  
  Serial.print("Node in use:");
  Serial.println(nodeIdentifier);
  
  Serial.print("Sensor in use:");
  Serial.println(sensorUsing);
+ 
+ String s = "<a href='/'> Go Back </a>";
+ server.send(200, "text/html", s); //Send web page
+}
 
 
-   if(ssidC == "NaN" || passwordC == "NaN" || ssidC == "MAP-S-CON-XXXX" || passwordC == "eg:Temperature.")
-  { String p = "<a href='/'> Go Back </a>";
- server.send(200, "text/html", p); //Send web page
- }
+/*
+====================================================================================================================================
+                         The setup part. This executes when the ESP restarts  
+====================================================================================================================================
+*/
 
 
-   String p = MAIN_page3;
-   server.send(200,"text/html",p);
-   
+void setup() {
+  delay(1000);
+  
+  Serial.begin(115200);
+  
+  EEPROM.begin(512);
+
+  handleConnection();
+  
+}
 
 
+
+
+
+/*
+====================================================================================================================================
+                    The loop parts. This runs forever. This is where we connect to WiFi using details provided by user.   
+====================================================================================================================================
+*/
+
+
+
+void loop() {
+
+
+if(WiFi.status() != WL_CONNECTED   && !checkSavedDetails())
+{
+   WiFi.begin(ssidC, passwordC);   
+  Serial.println("");
+ 
+          long long int timeThen = millis();
+  bool flag = true;
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+    long long int timeNow = millis();
+    if((timeNow - timeThen) > 20000)
+    {Serial.print("Taking too long");
+      flag = false;
+      break;
+    }
+}                                  
+ if(flag == false)
+{
+  Serial.println("Connection taking too long");
+  handleConnection();
+}
+ 
+  if(WiFi.status() == WL_CONNECTED)
+  {Serial.println("");                  //If connection successful show IP address in serial monitor
+  Serial.print("Connected to ");
+  Serial.println(ssidC);
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());       //IP address assigned to your ESP
+  }
+}
+
+if(WiFi.status() == WL_CONNECTED)
+{
+  if(configDone == false)
+  {
+    configPortal();
+  }
+
+  if(configDone == true)
+  {
+    Serial.println("Start the sensor tasks");
+  }
+  delay(2000);
 }
 
 
@@ -156,13 +242,151 @@ void handleForm2() {
 
 
 
-void setup() {
-  delay(1000);
-  WiFi.disconnect(true);
-  Serial.begin(115200);
+
+
+}           // Loop ends.
+
+
+
+
+void configPortal()
+{
+  if(WiFi.status() != WL_CONNECTED)
+  {
+    handleConnection();
+    return;
+  }
+ 
+
+
+  Serial.println("Configuration Portal Started");
+ 
+  server.on("/", handleRoot2);      //Which routine to handle at root location
+  server.on("/action_page", handleForm2); //form action is handled here
+ 
+  server.begin();                  //Start server
+  Serial.println("HTTP server started");
+
+  while(nodeIdentifier == "NaN" || sensorUsing == "NaN")
+  {
+  server.handleClient();          //Handle client requests
+  }
+
+configDone = true;
+  return;
+  
+  
+}
+
+
+
+
+
+
+
+void saveDetails(String id, String pas)
+{
+    EEPROM.write(AddrlenSsid,id.length());
+    EEPROM.write(AddrlenPass,pas.length());
+    EEPROM.commit();
+  
+    for(int i=0; i<id.length(); i++)
+    {
+      EEPROM.write(AddrSsid+i,id[i]);
+      EEPROM.commit();
+      Serial.print("Wrote: ");
+      Serial.print(id[i]);
+      Serial.print(" to:");
+      Serial.println(AddrSsid+i);
+    }
+
+    for(int i=0; i<pas.length(); i++)
+    {
+      EEPROM.write(AddrPass+i,pas[i]);
+      EEPROM.commit();
+      Serial.print("Wrote: ");
+      Serial.print(pas[i]);
+      Serial.print(" to:");
+      Serial.println(AddrPass+i);
+    }
+
+}
+
+
+
+
+
+
+bool checkSavedDetails()
+{
+
+ lenSsid = EEPROM.read(AddrlenSsid);
+ Serial.println("");
+ Serial.print("SSID length is: ");
+ Serial.println(lenSsid);
+String ssidM = "";
+String passwordM = "";
+for (int i =0; i<lenSsid; i++)
+{char n = EEPROM.read(AddrSsid+i);
+  ssidM+=n ;
+}
+
+
+lenPass = EEPROM.read(AddrlenPass);
+Serial.print("Pass length is:");
+Serial.println(lenPass);
+for (int i =0; i<lenPass; i++)
+{char l = EEPROM.read(AddrPass+i);
+  passwordM+=l ;
+}
+
+Serial.print("Password is: ");
+Serial.println(passwordM);
+WiFi.disconnect(true);
+
+ delay(10);
+  // We start by connecting to a WiFi network
   Serial.println();
+  Serial.print("Connecting to ");
+  Serial.println(ssidM);
+
+  WiFi.begin(ssidM, passwordM);
+  long long int timeThen = millis();
+  bool flag = true;
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+    long long int timeNow = millis();
+    if((timeNow - timeThen) > 20000)
+    {Serial.print("Taking too long");
+      flag = false;
+      break;
+    }
+}
+
+if(WiFi.status() == WL_CONNECTED && flag == true)
+{
+  Serial.println("Connected to WiFi from memory");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());       //IP address assigned to your ESP
+  return true;
+}
+else if(flag == false)
+{
+  Serial.println("Can't remember the details bruh!");
+  return false;
+}
+
+}
+
+
+void handleConnection()
+{
+  
+  if(checkSavedDetails() == false )
+  {Serial.println();
   Serial.print("Configuring access point...");
-  /* You can remove the password parameter if you want the AP to be open. */
+ 
   WiFi.softAP(ssid, password);
 
   IPAddress myIP = WiFi.softAPIP();
@@ -172,45 +396,18 @@ void setup() {
   server.on("/action_page", handleForm);
   server.begin();
   Serial.println("HTTP server started");
-}
 
-void loop() {
-
-   if(ssidC == "NaN" || passwordC == "NaN" || 
-      ssidC == "XXXX" || passwordC == "XXXX"||
-      nodeIdentifier == "MAP-S-CON-XXXX" || sensorUsing == "eg:Temperature."||
-      nodeIdentifier == "NaN" || sensorUsing == "NaN")
+   while(ssidC == "NaN" || passwordC == "NaN" || 
+      ssidC == "XXXX" || passwordC == "XXXX")
   {
 server.handleClient();
  }
-
-
- else
- {
-   WiFi.begin(ssidC, passwordC);     //Connect to your WiFi router
-  Serial.println("");
- 
-  // Wait for connection
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+WiFi.disconnect(true);
   }
- 
-  //If connection successful show IP address in serial monitor
-  Serial.println("");
-  Serial.print("Connected to ");
-  Serial.println("WiFi");
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());  //IP address assigned to your ESP
- 
-  server.on("/", handleRoot3);      //Which routine to handle at root location
- 
-  server.begin();                  //Start server
-  Serial.println("HTTP server started");
- server.handleClient();
+
+else
+{
+  Serial.println("nahi kuch hua");
+}
   
- }
-
-
-
 }
