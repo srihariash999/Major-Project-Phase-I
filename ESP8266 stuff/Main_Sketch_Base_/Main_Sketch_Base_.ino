@@ -12,7 +12,7 @@
 
 /*
 ====================================================================================================================================
-                  The webpage displayed where you can enter the details for the Access point you wanna connect.
+                  The webpage displayed where you can enter the details for the Access point you wanna connect.  (Some errors in page- solve it!)
 ====================================================================================================================================
 */
 
