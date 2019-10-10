@@ -1,17 +1,18 @@
-#include <ESP8266WiFi.h>
-
+#include <WiFi.h>
 #include <WiFiClient.h>
+#include <WebServer.h>
+ #include"CS2.h"
+#include"Namaste2.h"
+#include "XT_DAC_Audio.h";
 
-#include <ESP8266WebServer.h>
- 
  
 const char MAIN_page[] PROGMEM = R"=====(
 <!DOCTYPE html>
 <html>
 <body>
  
-<h2>Circuits4you<h2>
-<h3> HTML Form ESP8266</h3>
+<h2>Welcome to Configuration Portal<h2>
+<h3> Map.S.Con 3000 Setup</h3>
  
 <form action="/action_page">
   First name:<br>
@@ -29,14 +30,11 @@ const char MAIN_page[] PROGMEM = R"=====(
 
  
 String nodeIdentifier, sensorUsing = "NaN";
-
-
-
 //SSID and Password of your WiFi router
- char* ssid = "Redmi4";
- char* password = "boomboom";
+const char* ssid = "SMVDUWIFI";
+const char* password = "networkcentre";
  
-ESP8266WebServer server(80);
+WebServer server(80);
 //===============================================================
 // This routine is executed when you open its IP in browser
 //===============================================================
@@ -63,29 +61,45 @@ void handleForm() {
 
 
 
+XT_Wav_Class Namaste2D(Namaste2);
+XT_Wav_Class CS2D(ConnectionSuccess2);                   
+XT_DAC_Audio_Class DacAudio(25,0); 
+
+
+
+
+      
+
 
 
 
 //==============================================================
 //                  SETUP
 //==============================================================
-
-
 void setup(void){
-  Serial.begin(9600);  
-
-
-  WiFi.begin(ssid, password);
+  Serial.begin(9600);
+  
+     DacAudio.PlayWav(&Namaste2D);
+     delay(1500);
+     
+  WiFi.begin(ssid, password);     //Connect to your WiFi router
+  Serial.println("");
  
+  // Wait for connection
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
-}
+  }
+ 
+  //If connection successful show IP address in serial monitor
 
+       DacAudio.PlayWav(&CS2D);
+       delay(3000);
+  Serial.println("");
+  Serial.print("Connected to ");
+  Serial.println("WiFi");
   Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());       //IP address assigned to your ESP
-
-
+  Serial.println(WiFi.localIP());  //IP address assigned to your ESP
  
   server.on("/", handleRoot);      //Which routine to handle at root location
   server.on("/action_page", handleForm); //form action is handled here
@@ -93,27 +107,9 @@ void setup(void){
   server.begin();                  //Start server
   Serial.println("HTTP server started");
 }
-
-
-
-
-
 //==============================================================
 //                     LOOP
 //==============================================================
-
-
 void loop(void){
-
-if(nodeIdentifier == "NaN" || sensorUsing == "NaN"){
   server.handleClient();          //Handle client requests
-}
-
-else
-{
-  Serial.println("Some other tasks using sensors");
-  delay(2000);
-}
-
-
 }

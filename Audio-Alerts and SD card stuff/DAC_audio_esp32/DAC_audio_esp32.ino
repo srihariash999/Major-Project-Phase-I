@@ -1,25 +1,23 @@
 
-#include "audio.h";
-#include"sound.h";
+
+#include"CS2.h"
+#include"Namaste2.h"
 #include "XT_DAC_Audio.h";
 
     
-XT_Wav_Class stressingD(stressing);                 
-XT_Wav_Class rainingD(raining);                    
+                 
+XT_Wav_Class Namaste2D(Namaste2);
+XT_Wav_Class CS2D(ConnectionSuccess2);                   
 XT_DAC_Audio_Class DacAudio(25,0);    // Create the main player class object. 
                                       // Use GPIO 25, one of the 2 DAC pins and timer 0
 
 void setup() {
-  Serial.begin(115200);
- 
-     DacAudio.PlayWav(&rainingD);
-         delay(5000);
-       DacAudio.PlayWav(&stressingD);  // play the wav (pass the wav class object created at top of code
+  Serial.begin(115200); 
 
-
-    
-
-   
+     DacAudio.PlayWav(&Namaste2D);
+     delay(1500);
+     DacAudio.PlayWav(&CS2D);
+      
 }
 
 void loop() {
