@@ -1,7 +1,19 @@
+
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
 #include<EEPROM.h>
+#include <ESP8266HTTPClient.h>
+
+#include "SoftwareSerial.h"
+
+SoftwareSerial Uno(D6,D7); //Rx, Tx
+
+
+#define sel1 D3
+#define sel2 D4
+#define sel3 D5
+#define int1 D2
 
 #ifndef APSSID
 #define APSSID "MAP-S-CON 3000 Setup"
@@ -12,7 +24,7 @@
 
 /*
 ====================================================================================================================================
-                  The webpage displayed where you can enter the details for the Access point you wanna connect.  (Some errors in page- solve it!)
+                  The webpage displayed where you can enter the details for the Access point you wanna connect.
 ====================================================================================================================================
 */
 
@@ -56,10 +68,10 @@ const char MAIN_page2[]  = R"=====(
 <h3>Select the configuration please.</h3>
  
 <form action="/action_page">
-  First name:<br>
+  Device ID:<br>
   <input type="text" name="Node identifier" value="MAP-S-CON-XXXX">
   <br>
-  Last name:<br>
+  Sensor type:<br>
   <input type="text" name="Sensor to set" value="eg:Temperature.">
   <br><br>
   <input type="submit" value="Submit">
@@ -86,6 +98,7 @@ const char MAIN_page2[]  = R"=====(
 const char *ssid = APSSID;
 const char *password = APPSK;
 String ssidC, passwordC = "NaN";
+String ssidM,passwordM;
 int AddrlenSsid = 99, AddrlenPass = 100, AddrSsid = 101, AddrPass = 150;
 int lenSsid=0, lenPass=0;
 String nodeIdentifier, sensorUsing = "NaN";
@@ -166,8 +179,14 @@ void handleForm2() {
 
 void setup() {
   delay(1000);
-  
-  Serial.begin(115200);
+  Serial.begin(4800);
+  Uno.begin(4800);
+  pinMode(sel1,OUTPUT);
+  pinMode(sel2,OUTPUT);
+  pinMode(sel3,OUTPUT);
+  pinMode(int1,OUTPUT);
+  digitalWrite(int1,LOW);
+
   
   EEPROM.begin(512);
 
@@ -224,6 +243,9 @@ if(WiFi.status() != WL_CONNECTED   && !checkSavedDetails())
 
 if(WiFi.status() == WL_CONNECTED)
 {
+
+
+  
   if(configDone == false)
   {
     configPortal();
@@ -231,9 +253,94 @@ if(WiFi.status() == WL_CONNECTED)
 
   if(configDone == true)
   {
-    Serial.println("Start the sensor tasks");
+
+    HTTPClient http; 
+    if(sensorUsing == "soilmoisture")
+   
+    {
+        
+      digitalWrite(sel1,LOW);
+      digitalWrite(sel2,LOW);
+      digitalWrite(sel3,LOW);
+      Serial.println("sent 000");
+      digitalWrite(int1,HIGH);
+      delay(100);
+      digitalWrite(int1,LOW);
+
+      while(Uno.available() == 0);
+      String valSens = Uno.readString();
+
+      Serial.print(valSens);
+
+      String pushUrl = "http://mapscon.000webhostapp.com/api/soilmoisture/insert.php?moist=";
+      pushUrl += valSens;
+      Serial.println("Starting request");
+       
+      http.begin(pushUrl);  //Specify request destination
+      int httpCode = http.GET();                                                                  //Send the request
+       
+      if (httpCode > 0) { //Check the returning code
+       
+      String payload = http.getString();   //Get the request response payload
+      Serial.println(payload);                     //Print the response payload
+       
+      }
+
+      else
+      {
+        Serial.print(httpCode);
+      }
+       
+      http.end();
+
+
+      
+    }
+
+    else if (sensorUsing == "ir")
+    {
+      digitalWrite(sel1,HIGH);
+      digitalWrite(sel2,LOW);
+      digitalWrite(sel3,LOW);
+      Serial.println("sent 001");
+      digitalWrite(int1,HIGH);
+      delay(100);
+      digitalWrite(int1,LOW);
+      while(Uno.available() == 0);
+      String valSens = Uno.readString();
+
+      Serial.print(valSens);
+
+      String pushUrl = "http://mapscon.000webhostapp.com/api/soilmoisture/insert.php?moist=";
+      pushUrl += valSens;
+      Serial.println("Starting request");
+       
+      http.begin(pushUrl);  //Specify request destination
+      int httpCode = http.GET();                                                                  //Send the request
+       
+      if (httpCode > 0) { //Check the returning code
+       
+      String payload = http.getString();   //Get the request response payload
+      Serial.println(payload);                     //Print the response payload
+       
+      }
+
+      else
+      {
+        Serial.print(httpCode);
+      }
+       
+      http.end();
+
+
+
+    }
+
+
+
+    
   }
-  delay(2000);
+  delay(5000);
 }
 
 
@@ -251,20 +358,25 @@ if(WiFi.status() == WL_CONNECTED)
 
 void configPortal()
 {
-  if(WiFi.status() != WL_CONNECTED)
-  {
-    handleConnection();
-    return;
-  }
+//  if(WiFi.status() != WL_CONNECTED)
+//  {
+//    handleConnection();
+//    return;
+//  }
  
 
+Serial.print("Configuring access point...");
+ 
+  WiFi.softAP(ssid, password);
 
-  Serial.println("Configuration Portal Started");
- 
-  server.on("/", handleRoot2);      //Which routine to handle at root location
-  server.on("/action_page", handleForm2); //form action is handled here
- 
-  server.begin();                  //Start server
+  IPAddress myIP = WiFi.softAPIP();
+  Serial.print("AP IP address: ");
+  Serial.println(myIP);
+  server.on("/", handleRoot2);
+  server.on("/action_page", handleForm2);
+  server.begin();
+
+  
   Serial.println("HTTP server started");
 
   while(nodeIdentifier == "NaN" || sensorUsing == "NaN")
@@ -272,6 +384,7 @@ void configPortal()
   server.handleClient();          //Handle client requests
   }
 
+connectWifiSTA();
 configDone = true;
   return;
   
@@ -324,8 +437,8 @@ bool checkSavedDetails()
  Serial.println("");
  Serial.print("SSID length is: ");
  Serial.println(lenSsid);
-String ssidM = "";
-String passwordM = "";
+ssidM = "";
+passwordM = "";
 for (int i =0; i<lenSsid; i++)
 {char n = EEPROM.read(AddrSsid+i);
   ssidM+=n ;
@@ -349,7 +462,7 @@ WiFi.disconnect(true);
   Serial.println();
   Serial.print("Connecting to ");
   Serial.println(ssidM);
-
+   WiFi.mode(WIFI_STA);
   WiFi.begin(ssidM, passwordM);
   long long int timeThen = millis();
   bool flag = true;
@@ -402,12 +515,37 @@ void handleConnection()
   {
 server.handleClient();
  }
-WiFi.disconnect(true);
+WiFi.mode(WIFI_STA);
   }
 
 else
 {
   Serial.println("nahi kuch hua");
 }
+  
+}
+
+
+void connectWifiSTA()
+{
+
+  Serial.println();
+  Serial.print("Connecting to ");
+  Serial.println(ssidM);
+   WiFi.mode(WIFI_STA);
+  WiFi.begin(ssidM, passwordM);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+    
+}
+ Serial.print("Connected to: ");
+ Serial.println(ssidM);
+ Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());  
+
+  Serial.print("Normal wifi mode switched");
+
   
 }
