@@ -311,7 +311,7 @@ if(WiFi.status() == WL_CONNECTED)
 
       Serial.print(valSens);
 
-      String pushUrl = "http://mapscon.000webhostapp.com/api/soilmoisture/insert.php?moist=";
+      String pushUrl = "http://mapscon.000webhostapp.com/api/ir/insert.php?irval=";
       pushUrl += valSens;
       Serial.println("Starting request");
        

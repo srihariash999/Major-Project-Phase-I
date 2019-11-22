@@ -1,6 +1,5 @@
 <?php
 
-
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 
@@ -8,32 +7,36 @@ header("Content-Type: application/json; charset=UTF-8");
 $response = array();
  
 // Check if we got the field from the user
-if (isset($_GET['id']) && isset($_GET['moist'])) {
+if (isset($_GET['irval'])) {
  
-    $id = $_GET['id'];
-    $temp= $_GET['moist'];
-    
+    $irval = $_GET['irval'];
  
     // Include data base connect class
-	$filepath = realpath (dirname(__FILE__));
+    $filepath = realpath (dirname(__FILE__));
 	require_once($filepath."/db_connect.php");
 
-	// Connecting to database
+ 
+    // Connecting to database 
     $db = new DB_CONNECT();
  
-	// Fire SQL query to update weather data by id
-    $result = mysql_query("UPDATE soilmoisture SET moist= '$moist' WHERE id = '$id'");
+    // Fire SQL query to insert data in weather
+    $result = mysql_query("INSERT INTO ir(irval) VALUES('$irval')");
  
-    // Check for succesfull execution of query and no results found
+    // Check for succesfull execution of query
     if ($result) {
-        // successfully updation of temp (temperature)
+        // successfully inserted 
         $response["success"] = 1;
-        $response["message"] = "soilmoisture Data successfully updated.";
+        $response["message"] = "IR successfully created.";
  
         // Show JSON response
         echo json_encode($response);
     } else {
+        // Failed to insert data in database
+        $response["success"] = 0;
+        $response["message"] = "Something has been wrong";
  
+        // Show JSON response
+        echo json_encode($response);
     }
 } else {
     // If required parameter is missing
